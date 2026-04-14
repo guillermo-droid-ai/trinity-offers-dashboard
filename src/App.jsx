@@ -149,17 +149,33 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/cs_leads?select=*&order=created_at.desc&limit=20000`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        setError(`Error ${res.status}: ${txt.substring(0, 200)}`);
-        setLeads([]);
-      } else {
+      const PAGE_SIZE = 1000;
+      const MAX_PAGES = 20;
+      let allLeads = [];
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/cs_leads?select=*&order=created_at.desc`, {
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            Range: `${from}-${to}`,
+          },
+        });
+        if (!res.ok && res.status !== 206) {
+          const txt = await res.text();
+          setError(`Error ${res.status}: ${txt.substring(0, 200)}`);
+          setLeads([]);
+          setLastRefresh(new Date());
+          setLoading(false);
+          return;
+        }
         const data = await res.json();
-        setLeads(Array.isArray(data) ? data : []);
+        if (!Array.isArray(data) || data.length === 0) break;
+        allLeads = allLeads.concat(data);
+        if (data.length < PAGE_SIZE) break;
       }
+      setLeads(allLeads);
       setLastRefresh(new Date());
     } catch (e) {
       setError(`Fetch failed: ${e.message}`);
