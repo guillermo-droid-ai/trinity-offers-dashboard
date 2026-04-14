@@ -237,12 +237,39 @@ function LeadTable({ leads }) {
   );
 }
 
+const STALE_CALLING_MINUTES = 10;
+
+async function resetStaleCalling(allLeads) {
+  const cutoff = new Date(Date.now() - STALE_CALLING_MINUTES * 60 * 1000).toISOString();
+  const stale = allLeads.filter(l => l.status === "calling" && l.last_called_at && l.last_called_at < cutoff);
+  if (stale.length === 0) return 0;
+  const ids = stale.map(l => l.id);
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/cs_leads?id=in.(${ids.join(",")})`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ status: "no_answer" }),
+    }
+  );
+  if (res.ok) {
+    stale.forEach(l => { l.status = "no_answer"; });
+  }
+  return stale.length;
+}
+
 export default function App() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [staleReset, setStaleReset] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -274,6 +301,8 @@ export default function App() {
         allLeads = allLeads.concat(data);
         if (data.length < PAGE_SIZE) break;
       }
+      const resetCount = await resetStaleCalling(allLeads);
+      if (resetCount > 0) setStaleReset(prev => prev + resetCount);
       setLeads(allLeads);
       setLastRefresh(new Date());
     } catch (e) {
@@ -325,6 +354,13 @@ export default function App() {
       {error && (
         <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#fca5a5" }}>
           {error}
+        </div>
+      )}
+
+      {staleReset > 0 && (
+        <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#fcd34d", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Auto-reset {staleReset} stale "calling" lead{staleReset > 1 ? "s" : ""} to "no_answer" (stuck &gt;{STALE_CALLING_MINUTES}min)</span>
+          <button onClick={() => setStaleReset(0)} style={{ background: "none", border: "none", color: "#fcd34d", cursor: "pointer", fontSize: 16, padding: "0 4px" }}>&times;</button>
         </div>
       )}
 
