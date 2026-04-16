@@ -28,6 +28,26 @@ export async function fetchLeads() {
   return allLeads;
 }
 
+export async function deleteLeads(ids) {
+  if (!ids.length) return;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/cs_leads?id=in.(${ids.join(",")})`,
+    {
+      method: "DELETE",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        Prefer: "return=minimal",
+      },
+    }
+  );
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Delete failed (${res.status}): ${txt.substring(0, 200)}`);
+  }
+  return ids.length;
+}
+
 const STALE_CALLING_MINUTES = 10;
 
 export async function resetStaleCalling(allLeads) {

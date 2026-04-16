@@ -75,7 +75,7 @@ const COLUMNS = [
   },
 ];
 
-export default function NewLeadsPage({ leads }) {
+export default function NewLeadsPage({ leads, onDelete }) {
   const [dateRange, setDateRange] = useState(null);
 
   const filteredLeads = useMemo(() => {
@@ -164,6 +164,7 @@ export default function NewLeadsPage({ leads }) {
           columns={COLUMNS}
           searchFields={["first_name", "name", "phone"]}
           defaultSort={{ key: "created_at", dir: "desc" }}
+          onDelete={onDelete}
         />
       </div>
     </div>

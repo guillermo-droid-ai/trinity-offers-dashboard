@@ -76,7 +76,7 @@ const COLUMNS = [
   },
 ];
 
-export default function FollowUpsPage({ leads }) {
+export default function FollowUpsPage({ leads, onDelete }) {
   const [dateRange, setDateRange] = useState(null);
 
   const followUpLeads = useMemo(() => {
@@ -171,6 +171,7 @@ export default function FollowUpsPage({ leads }) {
           columns={COLUMNS}
           searchFields={["first_name", "name", "phone"]}
           defaultSort={{ key: "next_call_at", dir: "asc" }}
+          onDelete={onDelete}
         />
       </div>
     </div>

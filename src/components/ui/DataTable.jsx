@@ -1,17 +1,20 @@
 import { useState, useMemo } from "react";
-import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import { STATUS_LABELS } from "../shared/constants";
 
 const PAGE_SIZES = [25, 50, 100];
 
-export default function DataTable({ data, columns, searchFields = [], defaultSort = null }) {
+export default function DataTable({ data, columns, searchFields = [], defaultSort = null, onDelete }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortKey, setSortKey] = useState(defaultSort?.key || null);
   const [sortDir, setSortDir] = useState(defaultSort?.dir || "desc");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
+  const [selected, setSelected] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null); // null | { ids: [], label: string }
 
   const filtered = useMemo(() => {
     let result = data;
@@ -59,8 +62,87 @@ export default function DataTable({ data, columns, searchFields = [], defaultSor
     setPage(0);
   };
 
+  // Selection handlers
+  const pageIds = paginated.map(r => r.id);
+  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selected.has(id));
+
+  const toggleRow = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const togglePage = () => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (allPageSelected) {
+        pageIds.forEach(id => next.delete(id));
+      } else {
+        pageIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDelete || !onDelete) return;
+    setDeleting(true);
+    try {
+      await onDelete(confirmDelete.ids);
+      setSelected(prev => {
+        const next = new Set(prev);
+        confirmDelete.ids.forEach(id => next.delete(id));
+        return next;
+      });
+    } catch (e) {
+      alert("Delete failed: " + e.message);
+    }
+    setDeleting(false);
+    setConfirmDelete(null);
+  };
+
+  const askDeleteSingle = (row) => {
+    const name = row.first_name || row.name || row.phone || row.id;
+    setConfirmDelete({ ids: [row.id], label: `"${name}"` });
+  };
+
+  const askDeleteBulk = () => {
+    setConfirmDelete({ ids: [...selected], label: `${selected.size} lead${selected.size > 1 ? 's' : ''}` });
+  };
+
+  const canDelete = !!onDelete;
+
   return (
     <div>
+      {/* Confirm modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => !deleting && setConfirmDelete(null)}>
+          <div className="glass p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-text-primary mb-2">Delete {confirmDelete.label}?</h3>
+            <p className="text-sm text-text-muted mb-5">This will permanently remove {confirmDelete.ids.length === 1 ? 'this lead' : 'these leads'} from Supabase. This cannot be undone.</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg text-sm text-text-secondary bg-surface-raised border border-border hover:bg-surface-hover cursor-pointer transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red/80 hover:bg-red border border-red/40 cursor-pointer transition-colors disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Controls */}
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-60">
@@ -83,6 +165,15 @@ export default function DataTable({ data, columns, searchFields = [], defaultSor
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
+        {canDelete && selected.size > 0 && (
+          <button
+            onClick={askDeleteBulk}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-red bg-red/10 border border-red/25 hover:bg-red/20 cursor-pointer transition-colors"
+          >
+            <Trash2 size={14} />
+            Delete {selected.size} selected
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -95,6 +186,16 @@ export default function DataTable({ data, columns, searchFields = [], defaultSor
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr className="border-b border-border-strong">
+                {canDelete && (
+                  <th className="px-3 py-2.5 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allPageSelected}
+                      onChange={togglePage}
+                      className="accent-blue cursor-pointer"
+                    />
+                  </th>
+                )}
                 {columns.map(col => (
                   <th
                     key={col.key}
@@ -113,11 +214,24 @@ export default function DataTable({ data, columns, searchFields = [], defaultSor
                     </span>
                   </th>
                 ))}
+                {canDelete && (
+                  <th className="px-3 py-2.5 w-10" />
+                )}
               </tr>
             </thead>
             <tbody>
               {paginated.map((row, i) => (
-                <tr key={row.id || i} className="border-b border-border glass-hover transition-colors">
+                <tr key={row.id || i} className={`border-b border-border transition-colors ${selected.has(row.id) ? 'bg-blue/5' : 'glass-hover'}`}>
+                  {canDelete && (
+                    <td className="px-3 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(row.id)}
+                        onChange={() => toggleRow(row.id)}
+                        className="accent-blue cursor-pointer"
+                      />
+                    </td>
+                  )}
                   {columns.map(col => (
                     <td key={col.key} className="px-3 py-2.5">
                       {col.render ? col.render(row) : (
@@ -127,6 +241,17 @@ export default function DataTable({ data, columns, searchFields = [], defaultSor
                       )}
                     </td>
                   ))}
+                  {canDelete && (
+                    <td className="px-3 py-2.5">
+                      <button
+                        onClick={() => askDeleteSingle(row)}
+                        className="p-1.5 rounded-md text-text-dim hover:text-red hover:bg-red/10 cursor-pointer transition-colors"
+                        title="Delete lead"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -139,6 +264,9 @@ export default function DataTable({ data, columns, searchFields = [], defaultSor
         <div className="flex flex-wrap items-center justify-between mt-4 gap-3 text-xs text-text-muted">
           <div className="flex items-center gap-2">
             <span>{sorted.length} result{sorted.length !== 1 ? 's' : ''}</span>
+            {canDelete && selected.size > 0 && (
+              <span className="text-blue">({selected.size} selected)</span>
+            )}
             <select
               value={pageSize}
               onChange={e => { setPageSize(Number(e.target.value)); setPage(0); }}

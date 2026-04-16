@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { fetchLeads, resetStaleCalling } from "../lib/supabase";
+import { fetchLeads, resetStaleCalling, deleteLeads as deleteLeadsApi } from "../lib/supabase";
 
 const REFRESH_INTERVAL = 30000;
 
@@ -35,5 +35,10 @@ export function useLeads() {
 
   const dismissStaleReset = useCallback(() => setStaleReset(0), []);
 
-  return { leads, loading, error, lastRefresh, staleReset, dismissStaleReset, refresh: load };
+  const deleteLeads = useCallback(async (ids) => {
+    await deleteLeadsApi(ids);
+    setLeads(prev => prev.filter(l => !ids.includes(l.id)));
+  }, []);
+
+  return { leads, loading, error, lastRefresh, staleReset, dismissStaleReset, refresh: load, deleteLeads };
 }

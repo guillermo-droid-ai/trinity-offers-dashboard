@@ -63,7 +63,7 @@ const COLUMNS = [
   },
 ];
 
-export default function CallsPage({ leads }) {
+export default function CallsPage({ leads, onDelete }) {
   const [dateRange, setDateRange] = useState(null);
 
   const calledLeads = useMemo(() => {
@@ -110,6 +110,7 @@ export default function CallsPage({ leads }) {
           columns={COLUMNS}
           searchFields={["first_name", "name", "phone"]}
           defaultSort={{ key: "last_called_at", dir: "desc" }}
+          onDelete={onDelete}
         />
       </div>
     </div>

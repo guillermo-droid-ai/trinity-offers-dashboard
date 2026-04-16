@@ -16,7 +16,7 @@ const PAGE_TITLES = {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const { leads, loading, error, lastRefresh, staleReset, dismissStaleReset, refresh } = useLeads();
+  const { leads, loading, error, lastRefresh, staleReset, dismissStaleReset, refresh, deleteLeads } = useLeads();
 
   return (
     <div className="flex min-h-screen bg-surface">
@@ -42,10 +42,10 @@ export default function App() {
           <LoadingSkeleton />
         ) : (
           <>
-            {activeTab === "dashboard" && <DashboardPage leads={leads} />}
-            {activeTab === "calls" && <CallsPage leads={leads} />}
-            {activeTab === "new-leads" && <NewLeadsPage leads={leads} />}
-            {activeTab === "follow-ups" && <FollowUpsPage leads={leads} />}
+            {activeTab === "dashboard" && <DashboardPage leads={leads} onDelete={deleteLeads} />}
+            {activeTab === "calls" && <CallsPage leads={leads} onDelete={deleteLeads} />}
+            {activeTab === "new-leads" && <NewLeadsPage leads={leads} onDelete={deleteLeads} />}
+            {activeTab === "follow-ups" && <FollowUpsPage leads={leads} onDelete={deleteLeads} />}
           </>
         )}
       </main>
