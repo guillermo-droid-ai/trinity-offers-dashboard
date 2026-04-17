@@ -53,7 +53,7 @@ export async function deleteLeads(ids) {
       phone: lead.phone || null,
       first_name: lead.first_name || lead.name || null,
       reason: "removed_from_dashboard",
-      original_lead_id: lead.id,
+      original_lead_id: String(lead.id),
       added_at: new Date().toISOString(),
     }));
     const insertRes = await fetch(
