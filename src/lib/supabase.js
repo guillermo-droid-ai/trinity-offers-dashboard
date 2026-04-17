@@ -30,6 +30,52 @@ export async function fetchLeads() {
 
 export async function deleteLeads(ids) {
   if (!ids.length) return;
+
+  // 1. Fetch full lead data before removing
+  const fetchRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/cs_leads?id=in.(${ids.join(",")})&select=*`,
+    {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
+    }
+  );
+  if (!fetchRes.ok) {
+    const txt = await fetchRes.text();
+    throw new Error(`Failed to fetch leads for DNC (${fetchRes.status}): ${txt.substring(0, 200)}`);
+  }
+  const leadsData = await fetchRes.json();
+
+  // 2. Insert into dnc table
+  if (leadsData.length > 0) {
+    const dncRows = leadsData.map(lead => ({
+      phone: lead.phone || null,
+      first_name: lead.first_name || lead.name || null,
+      reason: "removed_from_dashboard",
+      original_lead_id: lead.id,
+      added_at: new Date().toISOString(),
+    }));
+    const insertRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/dnc`,
+      {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(dncRows),
+      }
+    );
+    if (!insertRes.ok) {
+      const txt = await insertRes.text();
+      throw new Error(`Failed to add to DNC list (${insertRes.status}): ${txt.substring(0, 200)}`);
+    }
+  }
+
+  // 3. Delete from cs_leads
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/cs_leads?id=in.(${ids.join(",")})`,
     {

@@ -121,8 +121,8 @@ export default function DataTable({ data, columns, searchFields = [], defaultSor
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => !deleting && setConfirmDelete(null)}>
           <div className="glass p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-text-primary mb-2">Delete {confirmDelete.label}?</h3>
-            <p className="text-sm text-text-muted mb-5">This will permanently remove {confirmDelete.ids.length === 1 ? 'this lead' : 'these leads'} from Supabase. This cannot be undone.</p>
+            <h3 className="text-base font-semibold text-text-primary mb-2">Add {confirmDelete.label} to DNC?</h3>
+            <p className="text-sm text-text-muted mb-5">This will add {confirmDelete.ids.length === 1 ? 'this lead' : 'these leads'} to the Do Not Call list and remove {confirmDelete.ids.length === 1 ? 'it' : 'them'} from the dashboard.</p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setConfirmDelete(null)}
@@ -136,7 +136,7 @@ export default function DataTable({ data, columns, searchFields = [], defaultSor
                 disabled={deleting}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red/80 hover:bg-red border border-red/40 cursor-pointer transition-colors disabled:opacity-50"
               >
-                {deleting ? "Deleting..." : "Delete"}
+                {deleting ? "Adding to DNC..." : "Add to DNC"}
               </button>
             </div>
           </div>
@@ -171,7 +171,7 @@ export default function DataTable({ data, columns, searchFields = [], defaultSor
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-red bg-red/10 border border-red/25 hover:bg-red/20 cursor-pointer transition-colors"
           >
             <Trash2 size={14} />
-            Delete {selected.size} selected
+            DNC {selected.size} selected
           </button>
         )}
       </div>
@@ -246,7 +246,7 @@ export default function DataTable({ data, columns, searchFields = [], defaultSor
                       <button
                         onClick={() => askDeleteSingle(row)}
                         className="p-1.5 rounded-md text-text-dim hover:text-red hover:bg-red/10 cursor-pointer transition-colors"
-                        title="Delete lead"
+                        title="Add to DNC"
                       >
                         <Trash2 size={14} />
                       </button>
