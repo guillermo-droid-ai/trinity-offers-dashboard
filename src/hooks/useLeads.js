@@ -21,7 +21,7 @@ export function useLeads() {
       setLastRefresh(new Date());
     } catch (e) {
       setError(e.message || "Fetch failed");
-      setLeads([]);
+      // Keep existing leads on error instead of blanking the dashboard
       setLastRefresh(new Date());
     }
     setLoading(false);

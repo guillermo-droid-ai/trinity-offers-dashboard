@@ -3,23 +3,37 @@ export const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdX
 
 const PAGE_SIZE = 1000;
 const MAX_PAGES = 20;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000;
+
+async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok && res.status !== 206) {
+        const txt = await res.text();
+        throw new Error(`Error ${res.status}: ${txt.substring(0, 200)}`);
+      }
+      return res;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await new Promise(r => setTimeout(r, RETRY_DELAY * (attempt + 1)));
+    }
+  }
+}
 
 export async function fetchLeads() {
   let allLeads = [];
   for (let page = 0; page < MAX_PAGES; page++) {
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/cs_leads?select=*&order=created_at.desc`, {
+    const res = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/cs_leads?select=*&order=created_at.desc`, {
       headers: {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${SUPABASE_KEY}`,
         Range: `${from}-${to}`,
       },
     });
-    if (!res.ok && res.status !== 206) {
-      const txt = await res.text();
-      throw new Error(`Error ${res.status}: ${txt.substring(0, 200)}`);
-    }
     const data = await res.json();
     if (!Array.isArray(data) || data.length === 0) break;
     allLeads = allLeads.concat(data);
