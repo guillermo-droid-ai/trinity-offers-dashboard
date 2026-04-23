@@ -15,10 +15,13 @@ export function useLeads() {
     setError(null);
     try {
       const allLeads = await fetchLeads();
-      const resetCount = await resetStaleCalling(allLeads);
-      if (resetCount > 0) setStaleReset(prev => prev + resetCount);
       setLeads(allLeads);
       setLastRefresh(new Date());
+      // Run stale reset separately so it never breaks the dashboard
+      try {
+        const resetCount = await resetStaleCalling(allLeads);
+        if (resetCount > 0) setStaleReset(prev => prev + resetCount);
+      } catch (_) { /* stale reset is best-effort */ }
     } catch (e) {
       setError(e.message || "Fetch failed");
       // Keep existing leads on error instead of blanking the dashboard

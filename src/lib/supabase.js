@@ -109,27 +109,33 @@ export async function deleteLeads(ids) {
 }
 
 const STALE_CALLING_MINUTES = 10;
+const BATCH_SIZE = 50;
 
 export async function resetStaleCalling(allLeads) {
   const cutoff = new Date(Date.now() - STALE_CALLING_MINUTES * 60 * 1000).toISOString();
   const stale = allLeads.filter(l => l.status === "calling" && l.last_called_at && l.last_called_at < cutoff);
   if (stale.length === 0) return 0;
-  const ids = stale.map(l => l.id);
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/cs_leads?id=in.(${ids.join(",")})`,
-    {
-      method: "PATCH",
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({ status: "no_answer" }),
+
+  // Batch into chunks to avoid URL length limits
+  for (let i = 0; i < stale.length; i += BATCH_SIZE) {
+    const batch = stale.slice(i, i + BATCH_SIZE);
+    const ids = batch.map(l => l.id);
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/cs_leads?id=in.(${ids.join(",")})`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ status: "no_answer" }),
+      }
+    );
+    if (res.ok) {
+      batch.forEach(l => { l.status = "no_answer"; });
     }
-  );
-  if (res.ok) {
-    stale.forEach(l => { l.status = "no_answer"; });
   }
   return stale.length;
 }
